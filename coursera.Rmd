@@ -1,0 +1,160 @@
+---
+title: "PROJECT_COURSERA"
+author: "Daiane Rodrigues"
+date: "6 de março de 2019"
+output: html_document
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+This project is an assignment to the course Practical Machine Learning and it is a part of the Specialization Data Science from Coursera.
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+
+##Cleaning Data Set
+Libnames
+
+```{r cars1,message=FALSE}
+library(caret)
+```
+
+Data set
+```{r cars2}
+testing  =  read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"),header=TRUE);
+training =  read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"),header=TRUE);
+
+```
+
+We can see that we have 160 columns and 19622 rows.
+```{r cars3, echo=TRUE}
+dim(training);
+```
+
+It is a lot of variables, but when we open the data set we can see that we have many columns that does not
+contain data, it is blank space (NA). As we can see bellow
+
+```{r cars4}
+str(training) 
+```
+
+
+We have to clean our data, so we can do a better prediction. We are going to remove the variable that 
+has more then 85% of data missing
+
+```{r cars42}
+remove = which(colSums(is.na(training)|training=="")>0.85)
+training2 = training[,-remove]
+```
+
+Because we want to predict the variable class,it does not make sense to keep the data about the people,
+like the name of them, so we have to remove those variables to
+
+```{r cars5}
+trainingf = training2[,-c(1:7)]
+```
+Now we hava 53, variable to do the analysis. We have to do the same steps with the test sample. 
+
+```{r cars6}
+removet  = which(colSums(is.na(testing)|testing=="")>0.85)
+testing2 = testing[,-removet]
+testingf = testing2[,-c(1:7)]
+dim(testingf)
+```
+
+
+##Separating sample for train and test
+```{r cars7}
+set.seed(217829) 
+marc =  createDataPartition(trainingf$classe, p = 0.7, list = FALSE)
+train = trainingf[marc, ]
+test = trainingf[-marc, ]
+dim(train)
+dim(test)
+```
+
+##Analysis
+
+The next step is to do the predictive analysis. We are going to test two differents techniqhes,Random Forest and Boosting (GBM).We are going to use Cross Validation with 5 folds, I choose 5 folds because we learn that with 10 folds, it does not increase the accuracy so much. 
+
+Random Forest
+```{r cars8}
+trControl  =  trainControl(method="cv", number=5)
+modFit_RF =  train(classe ~ .,method="rf",data=train,trControl = trControl,verbose = FALSE)
+print(modFit_RF)
+```
+
+We can see how the model is working on the test sample
+The accuracy of the model is very good 
+
+```{r cars9}
+predrf = predict(modFit_RF,test)
+res_rf = confusionMatrix(test$classe,predrf)
+res_rf
+res_rf$table
+```
+
+The final variables in the model are: 
+```{r cars91}
+names(modFit_RF$finalModel)
+```
+
+
+we can see that using more than 30 trees does nor decrease the error so much. 
+
+```{r cars10, echo=TRUE}
+plot(modFit_RF$finalModel,main="Error of Random Forest VS number of trees")
+```
+
+       
+We can measure the variables importances. 
+```{r cars93}
+Mostimport = varImp(modFit_RF)
+Mostimport
+```
+With Random Forest we get 99.38% of accuracy. This is a satisfatory result. 
+
+
+##Boosting - GBM
+
+```{r cars11}
+
+modFit_gbm = train(classe~ .,method="gbm",data=train,trControl = trControl,verbose = FALSE)
+print(modFit_gbm)
+```
+
+We can see how the model is working on the test sample
+The accuracy of the model is good, but the Random Forest is better 
+
+```{r cars12}
+predgbm = predict(modFit_gbm,test)
+gbm = confusionMatrix(predgbm,test$classe)$overall[1]
+res_gbm = confusionMatrix(test$classe,predgbm)
+res_gbm
+res_gbm$table
+```
+
+The final variables in the model are: 
+```{r cars13}
+names(modFit_gbm$finalModel)
+```
+
+we can see that using more than 30 trees does nor decrease the error so much. 
+```{r cars133}
+plot(modFit_gbm)
+```
+
+We can measure the variables importances. 
+
+##Conclusion
+The best model is Random Forest. We are going to apply these model on the test data cleaning
+```{r cars14}
+datateste = predict(modFit_RF,testingf)
+datateste  
+``` 
+
+
